@@ -16,4 +16,4 @@ VERSION=nightly
 
 heroku buildpacks->
 heroku create --buildpack emk/rust
-heroku buildbpacks:set emk/rust
+heroku buildpacks:set emk/rust
