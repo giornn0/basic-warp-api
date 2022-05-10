@@ -23,7 +23,7 @@ pub async fn app(pool: &Arc<Pool>) {
         .recover(handle_rejection);
 
     let cors = warp::cors()
-        .allow_origins(["http://localhost:8100"])
+        .allow_any_origin()
         .allow_headers(vec!["content-type","authorization"])
         .allow_methods(vec!["POST","GET","PUT","DELETE"]);
 
