@@ -1,5 +1,5 @@
 use bigdecimal::BigDecimal;
-use jsonwebtoken::{encode, errors::Error, Header};
+use jsonwebtoken::{encode, errors::Error, Header, Algorithm, Validation};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
@@ -23,6 +23,16 @@ pub struct User {
     created_at: chrono::NaiveDateTime,
     updated_at: chrono::NaiveDateTime,
 }
+#[derive(Serialize,AsChangeset, Deserialize, Debug)]
+#[table_name = "users"]
+pub struct UserBalance {
+    balance: Option<BigDecimal>,
+}
+impl UserBalance{
+  pub fn from(balance: BigDecimal)->UserBalance{
+    UserBalance { balance: Some(balance) }
+  }
+}
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UserPayload {
     pub id: i32,
@@ -30,6 +40,15 @@ pub struct UserPayload {
     pub lastname: String,
     pub state: Option<bool>,
     pub balance: Option<BigDecimal>,
+}
+#[derive(Serialize, Deserialize, Debug)]
+pub struct UserPayloadLogged {
+    pub id: i32,
+    pub name: String,
+    pub lastname: String,
+    pub state: Option<bool>,
+    pub balance: Option<BigDecimal>,
+    pub token: String
 }
 
 impl User {
@@ -45,8 +64,18 @@ impl User {
             balance: (*self).balance.to_owned(),
         }
     }
+    pub fn payload_with_token(self: &User, token: String)->UserPayloadLogged{
+      UserPayloadLogged {
+        id: (*self).id,
+        name: (*self.name).to_owned(),
+        lastname: (*self.lastname).to_owned(),
+        state: (*self).state,
+        balance: (*self).balance.to_owned(),
+        token
+    }
+    }
     pub fn loging_in(self: &User) -> Result<NewToken, Error> {
-        match encode(&Header::default(), &self.get_payload(), &encoding_key()) {
+        match encode(&Header::new(Algorithm::HS256), &self.get_payload(), &encoding_key()) {
             Ok(token) => Ok(NewToken::from(token, self.id)),
             Err(error) => Err(error),
         }

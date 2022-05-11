@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
 use crate::{
-    models::{server::Pool, token::{LoginPayload, Token}, user::User},
-    services::{errors::{throw_error, InvalidParameter, QueryNotFound}, response::response},
+    models::{server::{Pool, ApiResponse}, token::{LoginPayload, Token}, user::{User, UserPayloadLogged}},
+    services::{errors::{throw_error, InvalidParameter, QueryNotFound, handling_db_errors}},
     schema::access_tokens,
 };
-use diesel::{prelude::*, result::Error};
+use diesel::{prelude::*, result::Error, r2d2::{PooledConnection, ConnectionManager}};
 use warp::{reply::Json, Rejection};
 
 pub async fn login(payload: LoginPayload, db_pool: Arc<Pool>) -> Result<Json, Rejection> {
@@ -16,18 +16,25 @@ pub async fn login(payload: LoginPayload, db_pool: Arc<Pool>) -> Result<Json, Re
     let user: Result<User, Error> = users.filter(email.eq(user_email)).get_result(&conn);
     if let Ok(user) = user {
         if user.check_password(user_password) {
-            if let Ok(token) = user.loging_in() {
-                let result:Result<Token,Error> = diesel::insert_into(access_tokens::table)
-                    .values(&token)
-                    .get_result(&conn);
-                response(result)
-            } else {
-                Err(warp::reject::reject())
-            }
+            save_token(user, &conn)
         } else {
             throw_error(InvalidParameter::from("Incorrect password".to_owned()))
         }
     } else {
         throw_error(QueryNotFound::from("Email not registered".to_owned()))
     }
+}
+
+pub fn save_token(user: User, conn: &PooledConnection<ConnectionManager<PgConnection>>)->Result<Json, Rejection>{
+  if let Ok(token) = user.loging_in() {
+    let result:Result<Token,Error> = diesel::insert_into(access_tokens::table)
+        .values(&token)
+        .get_result(conn);
+    match result {
+      Ok(_) =>Ok(warp::reply::json(&ApiResponse::<UserPayloadLogged>::from(user.payload_with_token(token.get_token())))),
+      Err(error)=> handling_db_errors(error)
+    }
+} else {
+    Err(warp::reject::reject())
+}
 }

@@ -21,6 +21,12 @@ impl Concept{
   pub fn get_id(self: &Concept)->i32{
     (*self).id
   }
+  pub fn get_user_id(self: &Concept)->i32{
+    (*self).user_id
+  }
+  pub fn get_amount(self: &Concept)->BigDecimal{
+    (*self).amount.to_owned()
+  }
 }
 
 #[derive(Debug,Insertable, AsChangeset, Deserialize)]
