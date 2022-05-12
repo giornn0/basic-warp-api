@@ -24,11 +24,12 @@ pub async fn all_concepts(
     log_user: UserPayload,
     db_pool: Arc<Pool>,
 ) -> Result<Json, Rejection> {
-    use crate::schema::concepts::dsl::{concepts, user_id};
+    use crate::schema::concepts::dsl::{concepts, user_id,created_at};
     let conn = db_pool.get().unwrap();
     let result = if let Some(take) = query._take {
         concepts
             .filter(user_id.eq(log_user.id))
+            .order(created_at.desc())
             .limit(take)
             .offset(if let Some(page) = query._page {
                 (page - 1) * take
@@ -37,7 +38,7 @@ pub async fn all_concepts(
             })
             .load::<Concept>(&conn)
     } else {
-        concepts.filter(user_id.eq(log_user.id)).load::<Concept>(&conn)
+        concepts.filter(user_id.eq(log_user.id)).order(created_at.desc()).load::<Concept>(&conn)
     };
     response(result)
 }

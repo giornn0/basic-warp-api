@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use crate::{
-    models::{server::{Pool, ApiResponse}, token::{LoginPayload, Token}, user::{User, UserPayloadLogged}},
-    services::{errors::{throw_error, InvalidParameter, QueryNotFound, handling_db_errors}},
+    models::{server::{Pool, ApiResponse}, token::{LoginPayload, Token}, user::{User, UserPayloadLogged, UserPayload}},
+    services::{errors::{throw_error, InvalidParameter, QueryNotFound, handling_db_errors}, response::response},
     schema::access_tokens,
 };
 use diesel::{prelude::*, result::Error, r2d2::{PooledConnection, ConnectionManager}};
@@ -23,6 +23,13 @@ pub async fn login(payload: LoginPayload, db_pool: Arc<Pool>) -> Result<Json, Re
     } else {
         throw_error(QueryNotFound::from("Email not registered".to_owned()))
     }
+}
+
+pub async fn logout(log_user: UserPayload, db_pool: Arc<Pool>)-> Result<Json, Rejection> {
+  use crate::schema::access_tokens::dsl::{access_tokens, user_id};
+  let conn = db_pool.get().unwrap();
+  let result: Result<usize, Error>=diesel::delete(access_tokens.filter(user_id.eq(log_user.id))).execute(&conn);
+  response(result)
 }
 
 pub fn save_token(user: User, conn: &PooledConnection<ConnectionManager<PgConnection>>)->Result<Json, Rejection>{
